@@ -1,52 +1,34 @@
-import express from "express";
-import cors from "cors";
-import fs from "fs";
-import path from "path";
+const express = require("express");
+const cors = require("cors");
+const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json());
 
-const DATA_FILE = path.join(process.cwd(), "data.json");
+const supabase = createClient(
+  "https://aeewbkacspbxwmcsmeox.supabase.co",
+  "sb_publishable_Jic4Z7B_-xyCm5PqqOcUDA_wViVfPUS"
+);
 
-function readData() {
-  try {
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return { avisos: null, membros: null, pin: "1234" };
-  }
-}
+// TESTE
+app.get("/", (req,res)=> res.send("API ONLINE"));
 
-function writeData(d) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2), "utf-8");
-}
-
-app.get("/api/state", (req, res) => {
-  const d = readData();
-  res.json({
-    avisos: d.avisos ?? null,
-    membros: d.membros ?? null,
-  });
+app.get("/api/state", async (req,res)=>{
+  const { data, error } = await supabase.from("avisos").select("*");
+  if(error) return res.status(500).json(error);
+  res.json({avisos:data});
 });
 
-app.post("/api/state", (req, res) => {
-  const { avisos, membros, pin } = req.body || {};
-  const cur = readData();
-  const okPin = String(pin || "") === String(cur.pin || "1234");
-  if (!okPin) return res.status(401).json({ ok: false, error: "PIN inválido" });
+app.post("/api/state", async (req,res)=>{
+  const aviso=req.body.avisos[0];
 
-  const next = {
-    ...cur,
-    avisos: Array.isArray(avisos) ? avisos : cur.avisos,
-    membros: Array.isArray(membros) ? membros : cur.membros,
-    updatedAt: Date.now(),
-  };
-  writeData(next);
-  res.json({ ok: true });
+  const { data, error } = await supabase
+    .from("avisos")
+    .insert([{ titulo:aviso.titulo, tipo:aviso.tipo }]);
+
+  if(error) return res.status(500).json(error);
+  res.json({ok:true});
 });
 
-const port = process.env.PORT || 3000;
-app.listen(port, "0.0.0.0", () => {
-  console.log("✅ Servidor Pão da Vida rodando em http://0.0.0.0:" + port);
-});
+app.listen(3000, ()=> console.log("Servidor rodando"));
