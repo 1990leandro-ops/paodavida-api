@@ -6,49 +6,48 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const ADMIN_PIN = process.env.ADMIN_PIN || "1234";
+
 const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
+  "https://aeewbkacspbxwmcsmeox.supabase.co",
+  "sb_publishable_Jic4Z7B_-xyCm5PqqOcUDA_wViVfPUS"
 );
 
-function requireAdmin(req, res, next) {
-  const pin = req.header("x-admin-pin");
-  if (pin !== process.env.ADMIN_PIN) {
-    return res.status(401).json({ error: "unauthorized" });
-  }
-  next();
-}
-
-app.get("/health", (req, res) => {
-  res.send("ok");
+// TESTE
+app.get("/", (req, res) => {
+  res.send("API Pão da Vida online 🙏");
 });
 
+// GET dados
 app.get("/api/state", async (req, res) => {
-  const { data: avisos } = await supabase.from("avisos").select("*");
-  const { data: membros } = await supabase.from("membros").select("*");
+  const { data, error } = await supabase
+    .from("estado")
+    .select("*")
+    .limit(1)
+    .single();
 
-  res.json({
-    avisos: avisos || [],
-    membros: membros || []
-  });
+  if (error) return res.json({ avisos: [], membros: [] });
+  res.json(data);
 });
 
-app.post("/api/state", requireAdmin, async (req, res) => {
+// POST admin
+app.post("/api/state", async (req, res) => {
+  const pin = req.headers["x-admin-pin"];
+  if (pin !== ADMIN_PIN) {
+    return res.status(401).json({ error: "PIN inválido" });
+  }
+
   const { avisos, membros } = req.body;
 
-  if (avisos) {
-    await supabase.from("avisos").delete().neq("id", 0);
-    await supabase.from("avisos").insert(avisos);
-  }
+  const { error } = await supabase
+    .from("estado")
+    .upsert({ id: 1, avisos, membros });
 
-  if (membros) {
-    await supabase.from("membros").delete().neq("id", 0);
-    await supabase.from("membros").insert(membros);
-  }
+  if (error) return res.status(500).json(error);
 
   res.json({ ok: true });
 });
 
 app.listen(process.env.PORT || 3000, () => {
-  console.log("API rodando");
+  console.log("Servidor rodando 🚀");
 });
