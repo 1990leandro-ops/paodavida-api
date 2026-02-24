@@ -7,28 +7,48 @@ app.use(cors());
 app.use(express.json());
 
 const supabase = createClient(
-  "https://aeewbkacspbxwmcsmeox.supabase.co",
-  "sb_publishable_Jic4Z7B_-xyCm5PqqOcUDA_wViVfPUS"
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// TESTE
-app.get("/", (req,res)=> res.send("API ONLINE"));
+function requireAdmin(req, res, next) {
+  const pin = req.header("x-admin-pin");
+  if (pin !== process.env.ADMIN_PIN) {
+    return res.status(401).json({ error: "unauthorized" });
+  }
+  next();
+}
 
-app.get("/api/state", async (req,res)=>{
-  const { data, error } = await supabase.from("avisos").select("*");
-  if(error) return res.status(500).json(error);
-  res.json({avisos:data});
+app.get("/health", (req, res) => {
+  res.send("ok");
 });
 
-app.post("/api/state", async (req,res)=>{
-  const aviso=req.body.avisos[0];
+app.get("/api/state", async (req, res) => {
+  const { data: avisos } = await supabase.from("avisos").select("*");
+  const { data: membros } = await supabase.from("membros").select("*");
 
-  const { data, error } = await supabase
-    .from("avisos")
-    .insert([{ titulo:aviso.titulo, tipo:aviso.tipo }]);
-
-  if(error) return res.status(500).json(error);
-  res.json({ok:true});
+  res.json({
+    avisos: avisos || [],
+    membros: membros || []
+  });
 });
 
-app.listen(3000, ()=> console.log("Servidor rodando"));
+app.post("/api/state", requireAdmin, async (req, res) => {
+  const { avisos, membros } = req.body;
+
+  if (avisos) {
+    await supabase.from("avisos").delete().neq("id", 0);
+    await supabase.from("avisos").insert(avisos);
+  }
+
+  if (membros) {
+    await supabase.from("membros").delete().neq("id", 0);
+    await supabase.from("membros").insert(membros);
+  }
+
+  res.json({ ok: true });
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log("API rodando");
+});
