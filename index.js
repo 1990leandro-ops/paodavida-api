@@ -6,6 +6,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// GET AVISOS (para o app)
+app.get("/notices", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("estado")
+      .select("*")
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return res.json([]);
+    }
+
+    return res.json(data.avisos || []);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 const ADMIN_PIN = process.env.ADMIN_PIN || "1234";
 
 const supabase = createClient(
