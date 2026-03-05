@@ -1,0 +1,24 @@
+name: Deploy Supabase Edge Functions
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "supabase/functions/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g supabase
+      - env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          supabase link --project-ref $SUPABASE_PROJECT_REF
+          supabase functions deploy admin-send-notification
+          supabase functions deploy admin-galeria-upload
+          supabase functions deploy admin-pedidos-list
+          supabase functions deploy admin-pedidos-update
+          supabase functions deploy register-push-token
